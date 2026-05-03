@@ -10,6 +10,7 @@ type OrderItem = {
   quantity: number;
   unit_price: number;
   subtotal: number;
+  
 };
 
 type Order = {
@@ -24,6 +25,8 @@ type Order = {
   total: number;
   created_at: string;
   order_items: OrderItem[];
+  preferred_date: string | null;
+  preferred_time: string | null;
 };
 
 export default function CustomerOrdersPage() {
@@ -157,7 +160,10 @@ export default function CustomerOrdersPage() {
                     <h2 className="text-xl font-bold text-black">
                       Order from {new Date(order.created_at).toLocaleString()}
                     </h2>
-
+                   <p className="text-black">
+                    <strong>Preferred Schedule:</strong>{" "}
+                   {order.preferred_date || "No date"} at {order.preferred_time || "No time"}
+                    </p>
                     <p className="mt-2 text-black">
                       <strong>Method:</strong> {order.delivery_method}
                     </p>

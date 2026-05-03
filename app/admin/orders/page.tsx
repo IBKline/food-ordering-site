@@ -24,6 +24,8 @@ type Order = {
   total: number;
   created_at: string;
   order_items: OrderItem[];
+  preferred_date: string | null;
+  preferred_time: string | null;
 };
 
 export default function AdminOrdersPage() {
@@ -146,14 +148,16 @@ export default function AdminOrdersPage() {
                       {order.customer_name}
                     </h2>
 
-                    <p className="text-sm text-gray-900">
-                      Contact: {order.contact_number}
-                    </p>
-
+                    <p className="text-black">
+  <strong>Contact:</strong> {order.contact_number}
+</p>
                     <p className="mt-3 text-black">
                       <strong>Method:</strong> {order.delivery_method}
                     </p>
-
+                    <p className="text-black">
+  <strong>Preferred Schedule:</strong>{" "}
+  {order.preferred_date || "No date"} at {order.preferred_time || "No time"}
+</p>
                     <p className="text-black">
                       <strong>Address/Pickup Note:</strong> {order.address}
                     </p>

@@ -29,6 +29,8 @@ export default function Home() {
   const [contactNumber, setContactNumber] = useState("");
   const [deliveryMethod, setDeliveryMethod] = useState("delivery");
   const [address, setAddress] = useState("");
+  const [preferredDate, setPreferredDate] = useState("");
+  const [preferredTime, setPreferredTime] = useState("");
   const [notes, setNotes] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
@@ -37,6 +39,7 @@ export default function Home() {
   useEffect(() => {
     fetchMeals();
     loadUser();
+    setDefaultDate();
 
     const {
       data: { subscription },
@@ -48,6 +51,13 @@ export default function Home() {
       subscription.unsubscribe();
     };
   }, []);
+
+  function setDefaultDate() {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    setPreferredDate(tomorrow.toISOString().split("T")[0]);
+    setPreferredTime("12:00");
+  }
 
   async function loadUser() {
     const {
@@ -140,8 +150,8 @@ export default function Home() {
       return;
     }
 
-    if (!customerName || !contactNumber || !address) {
-      alert("Please complete your name, contact number, and address/pickup note.");
+    if (!customerName || !contactNumber || !address || !preferredDate || !preferredTime) {
+      alert("Please complete your name, contact number, date, time, and address/pickup note.");
       return;
     }
 
@@ -150,37 +160,39 @@ export default function Home() {
 
     const orderId = crypto.randomUUID();
 
-const { error: orderError } = await supabase
-  .from("orders")
-  .insert({
-    id: orderId,
-    user_id: user?.id || null,
-    customer_name: customerName,
-    contact_number: contactNumber,
-    delivery_method: deliveryMethod,
-    address,
-    payment_method: "GCash",
-    payment_status: "unpaid",
-    order_status: "pending",
-    notes,
-    total,
-  });
+    const { error: orderError } = await supabase
+      .from("orders")
+      .insert({
+        id: orderId,
+        user_id: user?.id || null,
+        customer_name: customerName,
+        contact_number: contactNumber,
+        delivery_method: deliveryMethod,
+        address,
+        preferred_date: preferredDate,
+        preferred_time: preferredTime,
+        payment_method: "GCash",
+        payment_status: "unpaid",
+        order_status: "pending",
+        notes,
+        total,
+      });
 
-if (orderError) {
-  console.error("Order error:", orderError);
-  alert(`Failed to submit order: ${orderError.message}`);
-  setSubmitting(false);
-  return;
-}
+    if (orderError) {
+      console.error("Order error:", orderError);
+      alert(`Failed to submit order: ${orderError.message}`);
+      setSubmitting(false);
+      return;
+    }
 
-  const orderItems = cart.map((item) => ({
-  order_id: orderId,
-  meal_id: item.id,
-  meal_name: item.name,
-  quantity: item.quantity,
-  unit_price: Number(item.price),
-  subtotal: Number(item.price) * item.quantity,
-}));
+    const orderItems = cart.map((item) => ({
+      order_id: orderId,
+      meal_id: item.id,
+      meal_name: item.name,
+      quantity: item.quantity,
+      unit_price: Number(item.price),
+      subtotal: Number(item.price) * item.quantity,
+    }));
 
     const { error: itemsError } = await supabase
       .from("order_items")
@@ -207,20 +219,22 @@ if (orderError) {
 
   return (
     <main className="min-h-screen bg-white text-black">
-      <section className="border-b border-gray-300 bg-white px-6 py-4 text-black">
+      <section className="sticky top-0 z-20 border-b border-gray-300 bg-white/95 px-5 py-4 text-black backdrop-blur">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
-          <a href="/" className="text-xl font-bold text-black">
+          <a href="/" className="text-xl font-extrabold text-black">
             Kline&apos;s Daily Meals
           </a>
 
           <div className="flex flex-wrap items-center gap-2">
             {user ? (
               <>
-                <span className="text-sm text-black">{user.email}</span>
+                <span className="hidden text-sm text-black sm:inline">
+                  {user.email}
+                </span>
 
                 <a
                   href="/account/orders"
-                  className="rounded-xl border border-orange-700 bg-orange-100 px-4 py-2 font-bold text-orange-900 hover:bg-orange-200"
+                  className="rounded-xl border border-orange-700 bg-orange-100 px-4 py-2 text-sm font-bold text-orange-900 hover:bg-orange-200"
                 >
                   My Orders
                 </a>
@@ -228,18 +242,20 @@ if (orderError) {
                 <button
                   type="button"
                   onClick={logout}
-                  className="rounded-xl border border-gray-400 bg-gray-100 px-4 py-2 font-bold text-black hover:bg-gray-200"
+                  className="rounded-xl border border-gray-400 bg-gray-100 px-4 py-2 text-sm font-bold text-black hover:bg-gray-200"
                 >
                   Logout
                 </button>
               </>
             ) : (
               <>
-                <span className="text-sm text-black">Ordering as guest</span>
+                <span className="hidden text-sm text-black sm:inline">
+                  Ordering as guest
+                </span>
 
                 <a
                   href="/login"
-                  className="rounded-xl border border-orange-700 bg-orange-100 px-4 py-2 font-bold text-orange-900 hover:bg-orange-200"
+                  className="rounded-xl border border-orange-700 bg-orange-100 px-4 py-2 text-sm font-bold text-orange-900 hover:bg-orange-200"
                 >
                   Login / Create Account
                 </a>
@@ -249,81 +265,156 @@ if (orderError) {
         </div>
       </section>
 
-      <section className="bg-orange-600 px-6 py-10 text-center text-white">
-        <h1 className="text-4xl font-bold">Kline&apos;s Daily Meals</h1>
-        <p className="mx-auto mt-3 max-w-2xl">
-          Affordable home-cooked rice meals and pasta by pre-order.
-          Payment first. Limited slots daily.
-        </p>
-      </section>
+      <section className="bg-gradient-to-b from-orange-50 to-white px-5 py-12">
+        <div className="mx-auto grid max-w-6xl items-center gap-8 md:grid-cols-2">
+          <div>
+            <p className="mb-3 inline-block rounded-full border border-orange-700 bg-orange-100 px-4 py-1 text-sm font-bold text-orange-900">
+              Pre-order home-cooked meals
+            </p>
 
-      <section className="mx-auto max-w-6xl px-5 py-6">
-        <div className="rounded-2xl border border-orange-300 bg-orange-50 p-5 shadow-sm">
-          <h2 className="text-xl font-bold text-black">Ordering Details</h2>
-          <p className="mt-2 text-black">Cut-off: 8:00 PM daily for next-day orders.</p>
-          <p className="text-black">Payment: GCash payment first before confirmation.</p>
-          <p className="text-black">Delivery fee is shouldered by the customer.</p>
+            <h1 className="text-4xl font-extrabold leading-tight text-black md:text-5xl">
+              Affordable rice meals and pasta for busy days.
+            </h1>
+
+            <p className="mt-4 max-w-xl text-lg text-black">
+              Budget-friendly, filling, home-cooked meals made for students,
+              workers, and busy people who need real food without spending too much.
+            </p>
+
+            <div className="mt-6 flex flex-wrap gap-3">
+              <a
+                href="#menu"
+                className="rounded-xl border border-orange-700 bg-orange-600 px-5 py-3 font-bold text-white hover:bg-orange-700"
+              >
+                View Menu
+              </a>
+
+              <a
+                href="#how-it-works"
+                className="rounded-xl border border-gray-400 bg-white px-5 py-3 font-bold text-black hover:bg-gray-100"
+              >
+                How It Works
+              </a>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-orange-200 bg-white p-5 shadow-sm">
+            <div className="rounded-2xl bg-orange-100 p-6 text-center">
+              <div className="text-7xl">🍱</div>
+              <h2 className="mt-4 text-2xl font-bold text-black">
+                Order one day before
+              </h2>
+              <p className="mt-2 text-black">
+                Daily cut-off: <strong>8:00 PM</strong>. Payment first through
+                GCash before confirmation.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-5 py-4">
-        <h2 className="mb-4 text-2xl font-bold text-black">Menu</h2>
+      <section className="mx-auto max-w-6xl px-5 py-6">
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="rounded-2xl border border-gray-300 bg-white p-5 shadow-sm">
+            <h3 className="text-lg font-bold text-black">Payment First</h3>
+            <p className="mt-2 text-sm text-black">
+              Orders are confirmed after GCash payment screenshot is sent.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-gray-300 bg-white p-5 shadow-sm">
+            <h3 className="text-lg font-bold text-black">Delivery or Pickup</h3>
+            <p className="mt-2 text-sm text-black">
+              Delivery fee is shouldered by the customer. Pickup depends on availability.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-gray-300 bg-white p-5 shadow-sm">
+            <h3 className="text-lg font-bold text-black">Guest Checkout</h3>
+            <p className="mt-2 text-sm text-black">
+              No account required. Login only if you want to track order history.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="menu" className="mx-auto max-w-6xl px-5 py-8">
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-3xl font-extrabold text-black">Today&apos;s Menu</h2>
+            <p className="mt-1 text-black">
+              Choose your meals, add to cart, then submit your pre-order.
+            </p>
+          </div>
+
+          <p className="rounded-full border border-orange-700 bg-orange-100 px-4 py-2 text-sm font-bold text-orange-900">
+            Cut-off: 8:00 PM
+          </p>
+        </div>
 
         {loading ? (
           <p className="text-black">Loading meals...</p>
         ) : meals.length === 0 ? (
-          <p className="text-black">No meals available right now.</p>
+          <p className="rounded-xl border border-gray-300 bg-gray-50 p-5 text-black">
+            No meals available right now.
+          </p>
         ) : (
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {meals.map((meal) => (
               <div
                 key={meal.id}
-                className="rounded-2xl border border-gray-300 bg-white p-5 shadow-sm"
+                className="overflow-hidden rounded-2xl border border-gray-300 bg-white shadow-sm"
               >
                 {meal.image_url ? (
                   <img
                     src={meal.image_url}
                     alt={meal.name}
-                    className="mb-4 h-40 w-full rounded-xl object-cover"
+                    className="h-44 w-full object-cover"
                   />
                 ) : (
-                  <div className="mb-4 flex h-40 items-center justify-center rounded-xl bg-orange-100 text-4xl">
+                  <div className="flex h-44 items-center justify-center bg-orange-100 text-5xl">
                     🍱
                   </div>
                 )}
 
-                <p className="mb-2 inline-block rounded-full border border-orange-700 bg-orange-100 px-3 py-1 text-xs font-bold text-orange-900">
-                  {meal.category || "Meal"}
-                </p>
+                <div className="p-5">
+                  <p className="mb-2 inline-block rounded-full border border-orange-700 bg-orange-100 px-3 py-1 text-xs font-bold text-orange-900">
+                    {meal.category || "Meal"}
+                  </p>
 
-                <h3 className="text-lg font-bold text-black">{meal.name}</h3>
+                  <h3 className="text-lg font-bold text-black">{meal.name}</h3>
 
-                <p className="mt-2 text-sm text-black">
-                  {meal.description}
-                </p>
+                  <p className="mt-2 min-h-10 text-sm text-black">
+                    {meal.description}
+                  </p>
 
-                <p className="mt-3 text-xl font-bold text-orange-900">
-                  ₱{Number(meal.price)}
-                </p>
+                  <div className="mt-4 flex items-center justify-between gap-3">
+                    <p className="text-2xl font-extrabold text-orange-900">
+                      ₱{Number(meal.price)}
+                    </p>
 
-                <button
-                  onClick={() => addToCart(meal)}
-                  className="mt-4 w-full rounded-xl border border-orange-700 bg-orange-100 px-4 py-3 font-bold text-orange-900 hover:bg-orange-200"
-                >
-                  Add to Order
-                </button>
+                    <button
+                      onClick={() => addToCart(meal)}
+                      className="rounded-xl border border-orange-700 bg-orange-100 px-4 py-2 font-bold text-orange-900 hover:bg-orange-200"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
         )}
       </section>
 
-      <section className="mx-auto grid max-w-6xl gap-6 px-5 py-8 lg:grid-cols-2">
+      <section className="mx-auto grid max-w-6xl gap-6 px-5 py-8 lg:grid-cols-[1fr_1.1fr]">
         <div className="rounded-2xl border border-gray-300 bg-white p-5 shadow-sm">
           <h2 className="text-2xl font-bold text-black">Your Order</h2>
 
           {cart.length === 0 ? (
-            <p className="mt-4 text-black">Your cart is empty.</p>
+            <p className="mt-4 rounded-xl border border-gray-300 bg-gray-50 p-4 text-black">
+              Your cart is empty. Add a meal from the menu.
+            </p>
           ) : (
             <div className="mt-4 space-y-4">
               {cart.map((item) => (
@@ -365,9 +456,11 @@ if (orderError) {
                 </div>
               ))}
 
-              <p className="text-right text-2xl font-bold text-black">
-                Total: ₱{total}
-              </p>
+              <div className="rounded-xl border border-orange-300 bg-orange-50 p-4">
+                <p className="text-right text-3xl font-extrabold text-orange-900">
+                  Total: ₱{total}
+                </p>
+              </div>
             </div>
           )}
         </div>
@@ -385,24 +478,48 @@ if (orderError) {
           </p>
 
           <div className="mt-4 grid gap-4">
-            <div>
-              <label className="font-semibold text-black">Full Name</label>
-              <input
-                className="mt-1 w-full rounded-xl border border-gray-400 bg-white p-3 text-black placeholder:text-gray-500"
-                value={customerName}
-                onChange={(event) => setCustomerName(event.target.value)}
-                placeholder="Juan Dela Cruz"
-              />
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="font-semibold text-black">Full Name</label>
+                <input
+                  className="mt-1 w-full rounded-xl border border-gray-400 bg-white p-3 text-black placeholder:text-gray-500"
+                  value={customerName}
+                  onChange={(event) => setCustomerName(event.target.value)}
+                  placeholder="Juan Dela Cruz"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-black">Contact Number</label>
+                <input
+                  className="mt-1 w-full rounded-xl border border-gray-400 bg-white p-3 text-black placeholder:text-gray-500"
+                  value={contactNumber}
+                  onChange={(event) => setContactNumber(event.target.value)}
+                  placeholder="09XXXXXXXXX"
+                />
+              </div>
             </div>
 
-            <div>
-              <label className="font-semibold text-black">Contact Number</label>
-              <input
-                className="mt-1 w-full rounded-xl border border-gray-400 bg-white p-3 text-black placeholder:text-gray-500"
-                value={contactNumber}
-                onChange={(event) => setContactNumber(event.target.value)}
-                placeholder="09XXXXXXXXX"
-              />
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="font-semibold text-black">Preferred Date</label>
+                <input
+                  type="date"
+                  className="mt-1 w-full rounded-xl border border-gray-400 bg-white p-3 text-black"
+                  value={preferredDate}
+                  onChange={(event) => setPreferredDate(event.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-black">Preferred Time</label>
+                <input
+                  type="time"
+                  className="mt-1 w-full rounded-xl border border-gray-400 bg-white p-3 text-black"
+                  value={preferredTime}
+                  onChange={(event) => setPreferredTime(event.target.value)}
+                />
+              </div>
             </div>
 
             <div>
@@ -437,10 +554,20 @@ if (orderError) {
               />
             </div>
 
+            <div className="rounded-xl border border-orange-300 bg-orange-50 p-4 text-black">
+              <h3 className="font-bold text-black">Payment Instructions</h3>
+              <p className="mt-1 text-sm text-black">
+                After submitting, send payment through GCash and send your screenshot for confirmation.
+              </p>
+              <p className="mt-2 text-sm font-bold text-black">
+                GCash: 09XX XXX XXXX
+              </p>
+            </div>
+
             <button
               type="submit"
               disabled={submitting}
-              className="rounded-xl border border-orange-700 bg-orange-100 px-4 py-3 font-bold text-orange-900 hover:bg-orange-200 disabled:opacity-60"
+              className="rounded-xl border border-orange-700 bg-orange-600 px-4 py-3 font-bold text-white hover:bg-orange-700 disabled:opacity-60"
             >
               {submitting ? "Submitting..." : "Submit Order"}
             </button>
@@ -453,6 +580,85 @@ if (orderError) {
           </div>
         </form>
       </section>
+
+      <section id="how-it-works" className="mx-auto max-w-6xl px-5 py-10">
+        <h2 className="text-3xl font-extrabold text-black">How Ordering Works</h2>
+
+        <div className="mt-5 grid gap-4 md:grid-cols-4">
+          <div className="rounded-2xl border border-gray-300 bg-white p-5 shadow-sm">
+            <p className="text-2xl font-extrabold text-orange-900">1</p>
+            <h3 className="mt-2 font-bold text-black">Choose Meals</h3>
+            <p className="mt-1 text-sm text-black">
+              Add your preferred meals to your order.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-gray-300 bg-white p-5 shadow-sm">
+            <p className="text-2xl font-extrabold text-orange-900">2</p>
+            <h3 className="mt-2 font-bold text-black">Submit Details</h3>
+            <p className="mt-1 text-sm text-black">
+              Enter your contact info, date, time, and address.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-gray-300 bg-white p-5 shadow-sm">
+            <p className="text-2xl font-extrabold text-orange-900">3</p>
+            <h3 className="mt-2 font-bold text-black">Pay via GCash</h3>
+            <p className="mt-1 text-sm text-black">
+              Send payment screenshot for confirmation.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-gray-300 bg-white p-5 shadow-sm">
+            <p className="text-2xl font-extrabold text-orange-900">4</p>
+            <h3 className="mt-2 font-bold text-black">Receive Meal</h3>
+            <p className="mt-1 text-sm text-black">
+              Pickup or delivery depending on your selected method.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-5 py-10">
+        <h2 className="text-3xl font-extrabold text-black">FAQ</h2>
+
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          <div className="rounded-2xl border border-gray-300 bg-white p-5 shadow-sm">
+            <h3 className="font-bold text-black">Do I need an account?</h3>
+            <p className="mt-2 text-sm text-black">
+              No. You can order as a guest. Login is only for tracking order history.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-gray-300 bg-white p-5 shadow-sm">
+            <h3 className="font-bold text-black">Is payment required first?</h3>
+            <p className="mt-2 text-sm text-black">
+              Yes. Orders are confirmed after GCash payment screenshot is sent.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-gray-300 bg-white p-5 shadow-sm">
+            <h3 className="font-bold text-black">Can I order for same day?</h3>
+            <p className="mt-2 text-sm text-black">
+              The default setup is pre-order. Same-day orders depend on availability.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-gray-300 bg-white p-5 shadow-sm">
+            <h3 className="font-bold text-black">Who pays delivery fee?</h3>
+            <p className="mt-2 text-sm text-black">
+              The customer shoulders the delivery fee unless stated otherwise.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <footer className="border-t border-gray-300 bg-gray-50 px-5 py-8 text-center text-black">
+        <p className="font-bold text-black">Kline&apos;s Daily Meals</p>
+        <p className="mt-1 text-sm text-black">
+          Home-cooked budget meals by pre-order.
+        </p>
+      </footer>
     </main>
   );
 }
